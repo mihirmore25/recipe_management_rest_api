@@ -18,9 +18,9 @@ export const verify = async (req, res, next) => {
     if (!token) {
         return res
             .status(401)
-            .json(
-                "Not authorize to access this route, Please try logging in first."
-            );
+            .json({
+                message: "Not authorize to access this route, Please try logging in first."
+            });
     }
 
     jwt.verify(token, process.env.JWT_SECRET, async (err, user_data) => {
