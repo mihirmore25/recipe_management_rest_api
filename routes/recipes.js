@@ -8,13 +8,14 @@ import {
     updateRecipe,
 } from "../controllers/recipe.js";
 // import { isAdmin } from "../middleware/isAdmin.js";
+import { upload } from "../middleware/multer.js";
 
 const router = express.Router();
 
 router.get("/", verify, getRecipes);
-router.post("/", verify, createRecipe);
+router.post("/", verify, upload.single("recipeImage"), createRecipe);
 router.get("/:id", verify, getRecipe);
-router.post("/:id", verify, deleteRecipe);
-router.put("/:id", verify, updateRecipe);
+router.delete("/:id", verify, deleteRecipe);
+router.put("/:id", verify, upload.single("recipeImage"), updateRecipe);
 
 export default router;

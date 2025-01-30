@@ -3,6 +3,18 @@ const Schema = mongoose.Schema;
 
 const recipeSchema = new Schema(
     {
+        recipeImage: {
+            type: Object,
+            publicId: {
+                type: String,
+                default: null,
+            },
+            imageUrl: {
+                type: String,
+                required: [true, "Your recipe image is required."],
+                default: null,
+            },
+        },
         title: {
             type: String,
             required: [true, "Your title is required"],

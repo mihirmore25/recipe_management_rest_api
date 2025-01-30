@@ -2,13 +2,18 @@ import { User } from "../models/User.js";
 import { Recipe } from "../models/Recipe.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import fs from "fs";
+import {
+    uploadOnCloudinary,
+    deleteFromCloudinary,
+} from "../utils/cloudinary.js";
 
 export const createRecipe = async (req, res) => {
     let token;
 
     token = req.cookies.access_token;
 
-    console.log("Token --> ", token);
+    // console.log("Token --> ", token);
 
     if (!token)
         return res.status(401).json({
@@ -34,6 +39,24 @@ export const createRecipe = async (req, res) => {
 
     // console.log("Req Body --> ", req.body);
 
+    if (
+        !title ||
+        !description ||
+        !totalTime ||
+        !prepTime ||
+        !cookingTime ||
+        !ingredients ||
+        !instructions ||
+        !calories ||
+        !carbs ||
+        !protein ||
+        !fat
+    ) {
+        return res
+            .status(400)
+            .json({ message: "All the given fields are required." });
+    }
+
     jwt.verify(token, process.env.JWT_SECRET, async (err, user_data) => {
         if (err) {
             return res
@@ -41,7 +64,33 @@ export const createRecipe = async (req, res) => {
                 .json({ message: "This session has expired. Please login" });
         }
 
+        const recipeImageLocalPath = req.file?.path || undefined;
+        console.log("Recipe Image Local Path ---> ", recipeImageLocalPath);
+        if (!recipeImageLocalPath || undefined) {
+            return res
+                .status(400)
+                .json({ message: "Please upload your recipe image!" });
+        }
+
+        const recipeImage = await uploadOnCloudinary(recipeImageLocalPath);
+        if (!recipeImage) {
+            return res
+                .status(400)
+                .json({ message: "Please upload your recipe image!" });
+        }
+
+        if (recipeImage.url) {
+            fs.unlinkSync(recipeImageLocalPath);
+            console.log(
+                "Image removed from local server and uploaded to remote successfully.."
+            );
+        }
+
         const newRecipe = await Recipe.create({
+            recipeImage: {
+                publicId: recipeImage.public_id,
+                imageUrl: recipeImage.url || "",
+            },
             title,
             description,
             totalTime,
@@ -196,20 +245,45 @@ export const updateRecipe = async (req, res) => {
         req.user._id.toString() == recipe.user.toString() ||
         req.user.role == "admin"
     ) {
-        const updatedRecipe = await Recipe.findByIdAndUpdate(
-            recipeId,
+        const recipeImageLocalPath = req.file?.path || undefined;
+        console.log("Recipe Image local path ", recipeImageLocalPath);
+
+        const recipeImage = await uploadOnCloudinary(recipeImageLocalPath);
+        console.log("Recipe Image URL ", recipeImage.url);
+
+        if (recipeImage.url) {
+            fs.unlinkSync(recipeImageLocalPath);
+            console.log(
+                "Image removed from local server and uploaded to remote successfully.."
+            );
+        }
+
+        console.log(recipe.recipeImage);
+
+        const deleteImageFromCloudinary = await deleteFromCloudinary(
+            recipe.recipeImage.publicId
+        );
+
+        const updatedRecipe = await Recipe.findOneAndUpdate(
+            { _id: recipeId },
             {
-                title,
-                description,
-                totalTime,
-                prepTime,
-                cookingTime,
-                ingredients,
-                instructions,
-                calories,
-                carbs,
-                protein,
-                fat,
+                $set: {
+                    recipeImage: {
+                        publicId: recipeImage.public_id || null,
+                        imageUrl: recipeImage.url || recipe.recipeImage || null,
+                    },
+                    title,
+                    description,
+                    totalTime,
+                    prepTime,
+                    cookingTime,
+                    ingredients,
+                    instructions,
+                    calories,
+                    carbs,
+                    protein,
+                    fat,
+                },
             },
             { new: true }
         ).select("-__v");
