@@ -7,6 +7,17 @@ import {
     uploadOnCloudinary,
     deleteFromCloudinary,
 } from "../utils/cloudinary.js";
+import { Redis } from "ioredis";
+
+const client = new Redis();
+
+client.on("connect", () => {
+    console.log(`Connected to Redis successfully...`);
+});
+
+client.on("error", (error) => {
+    console.error(`Redis connection error : ${error}`);
+});
 
 export const createRecipe = async (req, res) => {
     let token;
@@ -118,7 +129,13 @@ export const createRecipe = async (req, res) => {
 };
 
 export const getRecipes = async (req, res) => {
-    const recipes = await Recipe.find()
+    let recipes = await client.getex("recipes", "PX", 600);
+    if (recipes) {
+        recipes = JSON.parse(recipes);
+        return res.status(200).json(recipes);
+    }
+
+    recipes = await Recipe.find()
         .limit(8)
         .sort({ createdAt: -1 })
         .select("-__v");
@@ -129,6 +146,8 @@ export const getRecipes = async (req, res) => {
             message: "Recipes not found! Try creating new recipe",
         });
     }
+
+    await client.setex("recipes", 5, JSON.stringify(recipes, null, 4));
 
     return res.status(200).json({
         status: true,
