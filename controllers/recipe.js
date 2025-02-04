@@ -193,6 +193,10 @@ export const deleteRecipe = async (req, res) => {
 
         console.log("Deleted Recipe --> ", deletedRecipe);
 
+        const deleteImageFromCloudinary = await deleteFromCloudinary(
+            recipe.recipeImage.publicId
+        );
+
         return res.status(200).json({
             status: true,
             data: deletedRecipe,
