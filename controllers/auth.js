@@ -72,10 +72,12 @@ export const login = async (req, res) => {
         });
     }
 
-    const isPasswordValid = bcrypt.compareSync(
-        req.body.password,
-        user.password
-    );
+    // const isPasswordValid = bcrypt.compareSync(
+    //     req.body.password,
+    //     user.password
+    // );
+
+    const isPasswordValid = await user.isPasswordValid(req.body.password);
 
     if (!isPasswordValid) {
         return res.status(401).json({
@@ -88,15 +90,19 @@ export const login = async (req, res) => {
 
     const { password, ...user_data } = user._doc;
 
-    let options = {
-        expiresIn: 24 * 60 * 60 * 1000, // would expire in 1 day
-        httpOnly: true, // The cookie is only accessible by the web server
-    };
+    // let options = {
+    //     expiresIn: 24 * 60 * 60 * 1000, // would expire in 1 day
+    //     httpOnly: true, // The cookie is only accessible by the web server
+    // };
 
     const token = user.generateJWT();
 
     return res
-        .cookie("access_token", token, options)
+        .cookie("access_token", token, {
+            maxAge: 30 * 60 * 1000, // would expire in 30 minutes
+            httpOnly: true,
+            sameSite: "Strict",
+        })
         .status(200)
         .json({
             status: true,
